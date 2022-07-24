@@ -142,6 +142,7 @@ pub enum Operation {
     PackRef,
     UnpackRefDeep,
     PackRefDeep,
+    GlobalAddress,
 
     // Unary
     CastU8,
@@ -211,6 +212,7 @@ impl Operation {
             Operation::PackRef => false,
             Operation::UnpackRefDeep => false,
             Operation::PackRefDeep => false,
+            Operation::GlobalAddress => false,
             Operation::CastU8 => true,
             Operation::CastU64 => true,
             Operation::CastU128 => true,
@@ -994,6 +996,9 @@ impl<'env> fmt::Display for OperationDisplay<'env> {
             }
             UnpackRefDeep => {
                 write!(f, "unpack_ref_deep")?;
+            }
+            GlobalAddress => {
+                write!(f, "global_address")?;
             }
             WriteBack(node, edge) => write!(
                 f,

@@ -910,6 +910,9 @@ impl<'env> FunctionTranslator<'env> {
                             panic!("inconsistent IsParent instruction: expected a reference node")
                         }
                     }
+                    GlobalAddress => {
+                        unimplemented!();
+                    }
                     BorrowLoc => {
                         let src = srcs[0];
                         let dest = dests[0];
