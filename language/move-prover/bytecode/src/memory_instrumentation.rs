@@ -141,8 +141,9 @@ impl<'a> Instrumenter<'a> {
         for node in before.dying_nodes(after) {
             if let BorrowNode::Reference(idx) = &node {
                 // Generate write_back for this reference.
-                let is_conditional = before.is_conditional(&node);
-                for (parent, edge) in before.get_incoming(&node) {
+                let incoming = before.get_incoming(&node);
+                let is_conditional = incoming.len() > 1;
+                for (parent, edge) in incoming {
                     self.builder.set_loc_from_attr(attr_id);
                     let skip_label_opt = match parent {
                         BorrowNode::Reference(..) if is_conditional => {

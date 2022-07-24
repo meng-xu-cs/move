@@ -45,16 +45,16 @@ pub struct BorrowInfo {
 }
 
 impl BorrowInfo {
-    /// Gets the children of this node.
-    pub fn get_children(&self, node: &BorrowNode) -> Vec<&BorrowNode> {
+    /// Gets the direct children of this node.
+    fn get_direct_children(&self, node: &BorrowNode) -> Vec<&BorrowNode> {
         self.borrowed_by
             .get(node)
             .map(|s| s.iter().map(|(n, _)| n).collect_vec())
             .unwrap_or_else(Vec::new)
     }
 
-    /// Gets the parents of this node.
-    pub fn get_parents(&self, node: &BorrowNode) -> Vec<&BorrowNode> {
+    /// Gets the direct parents of this node.
+    fn get_direct_parents(&self, node: &BorrowNode) -> Vec<&BorrowNode> {
         self.borrows_from
             .get(node)
             .map(|s| s.iter().map(|(n, _)| n).collect_vec())
@@ -62,26 +62,41 @@ impl BorrowInfo {
     }
 
     /// Gets incoming edges (together with sources) of this node.
+    ///
+    /// When tracing for sources of borrow, follow the borrow chain until we either
+    /// 1) reach a live reference or
+    /// 2) the root of borrow e.g., a local, a global, or an argument.
     pub fn get_incoming(&self, node: &BorrowNode) -> SetDomain<(BorrowNode, BorrowEdge)> {
-        self.borrows_from.get(node).cloned().unwrap_or_default()
-    }
-
-    /// Returns true if this node is conditional, that is, it borrows from multiple parents,
-    /// or has a transient child which is conditional.
-    pub fn is_conditional(&self, node: &BorrowNode) -> bool {
+        let mut incoming = SetDomain::default();
         if let Some(parents) = self.borrows_from.get(node) {
-            // If there are more than one parent for this node, it is
-            // conditional.
-            if parents.len() > 1 {
-                return true;
+            for (parent, edge) in parents.iter() {
+                match parent {
+                    BorrowNode::GlobalRoot(_) | BorrowNode::LocalRoot(_) => {
+                        incoming.insert((parent.clone(), edge.clone()));
+                    }
+                    BorrowNode::Reference(_) => {
+                        if self.live_nodes.contains(parent) {
+                            incoming.insert((parent.clone(), edge.clone()));
+                        } else {
+                            // concat the edges
+                            for (root_node, path_root_to_parent) in self.get_incoming(parent) {
+                                let combined_path = path_root_to_parent
+                                    .flatten()
+                                    .into_iter()
+                                    .chain(edge.flatten().into_iter())
+                                    .cloned()
+                                    .collect();
+                                incoming.insert((root_node, BorrowEdge::Hyper(combined_path)));
+                            }
+                        }
+                    }
+                    BorrowNode::ReturnPlaceholder(_) => {
+                        unreachable!("unexpected transient borrow node")
+                    }
+                }
             }
         }
-        if let Some(childs) = self.borrowed_by.get(node) {
-            // Otherwise we look for a child that is conditional.
-            childs.iter().any(|(c, _)| self.is_conditional(c))
-        } else {
-            false
-        }
+        incoming
     }
 
     /// Checks whether a node is in use. A node is used if it is in the live_nodes set
@@ -90,7 +105,7 @@ impl BorrowInfo {
         if self.live_nodes.contains(node) {
             true
         } else {
-            self.get_children(node)
+            self.get_direct_children(node)
                 .iter()
                 .any(|child| self.is_in_use(child))
         }
@@ -107,33 +122,25 @@ impl BorrowInfo {
         let mut visited = BTreeSet::new();
         let mut result = vec![];
         for dying in self.live_nodes.difference(&next.live_nodes) {
-            // Collect ancestors, but exclude those which are still in use. Some nodes may be
-            // dying regards direct usage in instructions, but they may still be ancestors of
-            // living nodes (this is what `is_in_use` checks for).
-            if !next.is_in_use(dying) {
-                self.collect_ancestors(&mut visited, &mut result, dying, &|n| !next.is_in_use(n));
-            }
+            self.collect_live_ancestors(&mut visited, &mut result, dying);
         }
         result
     }
 
-    /// Collects this node and ancestors, inserting them in child-first order into the
-    /// given vector. Ancestors are only added if they fulfill the predicate.
-    fn collect_ancestors<P>(
+    /// Collects this node and its ancestors (in the borrow chain) that are still alive.
+    /// The nodes are collected into the given vector in child-first order.
+    fn collect_live_ancestors(
         &self,
         visited: &mut BTreeSet<BorrowNode>,
         order: &mut Vec<BorrowNode>,
         node: &BorrowNode,
-        cond: &P,
-    ) where
-        P: Fn(&BorrowNode) -> bool,
-    {
+    ) {
         if visited.insert(node.clone()) {
-            order.push(node.clone());
-            for parent in self.get_parents(node) {
-                if cond(parent) {
-                    self.collect_ancestors(visited, order, parent, cond);
-                }
+            if self.live_nodes.contains(node) {
+                order.push(node.clone());
+            }
+            for parent in self.get_direct_parents(node) {
+                self.collect_live_ancestors(visited, order, parent);
             }
         }
     }
