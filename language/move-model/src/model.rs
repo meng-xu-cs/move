@@ -32,15 +32,15 @@ use codespan_reporting::{
 use itertools::Itertools;
 #[allow(unused_imports)]
 use log::{info, warn};
-use move_command_line_common::files::FileHash;
 use num::{BigUint, One, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
+pub use move_binary_format::file_format::{AbilitySet, Visibility as FunctionVisibility};
 use move_binary_format::{
     access::ModuleAccess,
     binary_views::BinaryIndexedView,
     file_format::{
-        AddressIdentifierIndex, Bytecode, Constant as VMConstant, ConstantPoolIndex,
+        AddressIdentifierIndex, Bytecode, CodeOffset, Constant as VMConstant, ConstantPoolIndex,
         FunctionDefinitionIndex, FunctionHandleIndex, SignatureIndex, SignatureToken,
         StructDefinitionIndex, StructFieldInformation, StructHandleIndex, Visibility,
     },
@@ -52,6 +52,7 @@ use move_binary_format::{
     CompiledModule,
 };
 use move_bytecode_source_map::{mapping::SourceMapping, source_map::SourceMap};
+use move_command_line_common::{address::NumericalAddress, files::FileHash};
 use move_core_types::{
     account_address::AccountAddress,
     identifier::{IdentStr, Identifier},
@@ -65,6 +66,7 @@ use crate::{
         ConditionKind, Exp, ExpData, GlobalInvariant, ModuleName, PropertyBag, PropertyValue, Spec,
         SpecBlockInfo, SpecFunDecl, SpecVarDecl, Value,
     },
+    intrinsics::all_intrinsics,
     pragmas::{
         DELEGATE_INVARIANTS_TO_CALLER_PRAGMA, DISABLE_INVARIANTS_IN_BODY_PRAGMA, FRIEND_PRAGMA,
         INTRINSIC_PRAGMA, OPAQUE_PRAGMA, VERIFY_PRAGMA,
@@ -72,12 +74,8 @@ use crate::{
     symbol::{Symbol, SymbolPool},
     ty::{PrimitiveType, Type, TypeDisplayContext, TypeUnificationAdapter, Variance},
 };
-
 // import and re-expose symbols
 use crate::ast::Attribute;
-use move_binary_format::file_format::CodeOffset;
-pub use move_binary_format::file_format::{AbilitySet, Visibility as FunctionVisibility};
-use move_command_line_common::address::NumericalAddress;
 
 // =================================================================================================
 /// # Constants
@@ -207,6 +205,14 @@ pub struct FunId(Symbol);
 /// Identifier for a schema.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct SchemaId(Symbol);
+
+/// Identifier for an intrinsic type, relative to module.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub struct IntrinsicTypeId(Symbol);
+
+/// Identifier for an intrinsic function, relative to module.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub struct IntrinsicFunId(Symbol);
 
 /// Identifier for a specification function, relative to module.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -479,6 +485,10 @@ pub struct GlobalEnv {
     /// A special constant location representing an opaque location.
     /// In difference to an `unknown_loc`, this is a well-known but undisclosed location.
     internal_loc: Loc,
+    /// Intrinsic types with the associated pluggable handlers.
+    _intrinsic_types: BTreeMap<QualifiedId<IntrinsicTypeId>, BTreeMap<TypeId, Box<dyn Any>>>,
+    /// Intrinsic functions with the associated pluggable handlers.
+    _intrinsic_funs: BTreeMap<QualifiedId<IntrinsicFunId>, BTreeMap<TypeId, Box<dyn Any>>>,
     /// Accumulated diagnosis. In a RefCell so we can add to it without needing a mutable GlobalEnv.
     /// The boolean indicates whether the diag was reported.
     diags: RefCell<Vec<(Diagnostic<FileId>, bool)>>,
@@ -535,6 +545,10 @@ impl GlobalEnv {
         let unknown_loc = fake_loc("<unknown>");
         let unknown_move_ir_loc = MoveIrLoc::new(FileHash::new("<unknown>"), 0, 0);
         let internal_loc = fake_loc("<internal>");
+
+        // TODO(mengxu): handle intrinsics
+        let (_intrinsic_types, _intrinsic_funs) = all_intrinsics();
+
         GlobalEnv {
             source_files,
             doc_comments: Default::default(),
@@ -546,6 +560,8 @@ impl GlobalEnv {
             file_id_to_idx,
             file_idx_to_id,
             file_id_is_dep: BTreeSet::new(),
+            _intrinsic_types: BTreeMap::new(),
+            _intrinsic_funs: BTreeMap::new(),
             diags: RefCell::new(vec![]),
             symbol_pool: SymbolPool::new(),
             next_free_node_id: Default::default(),

@@ -81,7 +81,6 @@ pub fn is_pragma_valid_for_block(target: &SpecBlockContext<'_>, pragma: &str) ->
                 | EMITS_IS_PARTIAL_PRAGMA
                 | ABORTS_IF_IS_STRICT_PRAGMA
                 | ABORTS_IF_IS_PARTIAL_PRAGMA
-                | INTRINSIC_PRAGMA
         ),
         Function(..) => matches!(
             pragma,
