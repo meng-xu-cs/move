@@ -4,9 +4,11 @@
 
 #![forbid(unsafe_code)]
 
-use crate::function_target_pipeline::FunctionTargetsHolder;
-use move_model::model::GlobalEnv;
 use std::fmt::Write;
+
+use move_model::model::GlobalEnv;
+
+use crate::function_target_pipeline::FunctionTargetsHolder;
 
 pub mod access_path;
 pub mod access_path_trie;
@@ -28,6 +30,7 @@ pub mod global_invariant_instrumentation;
 pub mod global_invariant_instrumentation_v2;
 pub mod graph;
 pub mod inconsistency_check;
+pub mod intrinsics;
 pub mod livevar_analysis;
 pub mod loop_analysis;
 pub mod memory_instrumentation;
