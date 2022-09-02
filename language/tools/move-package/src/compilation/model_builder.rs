@@ -2,13 +2,15 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::Result;
+
+use move_compiler::shared::PackagePaths;
+use move_model::{model::GlobalEnv, options::ModelBuilderOptions, run_model_builder_with_options};
+
 use crate::{
     compilation::compiled_package::make_source_and_deps_for_compiler,
     resolution::resolution_graph::ResolvedGraph, ModelConfig,
 };
-use anyhow::Result;
-use move_compiler::shared::PackagePaths;
-use move_model::{model::GlobalEnv, options::ModelBuilderOptions, run_model_builder_with_options};
 
 #[derive(Debug, Clone)]
 pub struct ModelBuilder {
@@ -103,6 +105,13 @@ impl ModelBuilder {
             None => (all_targets, all_deps),
         };
 
-        run_model_builder_with_options(all_targets, all_deps, ModelBuilderOptions::default())
+        run_model_builder_with_options(
+            all_targets,
+            all_deps,
+            // TODO(mengxu): add intrinsics (from move-stdlib)
+            vec![],
+            vec![],
+            ModelBuilderOptions::default(),
+        )
     }
 }

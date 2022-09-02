@@ -5,11 +5,20 @@
 // Functions for running benchmarks and storing the results as files, as well as reading
 // benchmark data back into memory.
 
+use std::{
+    fmt::Debug,
+    fs::File,
+    io::{LineWriter, Write},
+    path::PathBuf,
+    time::{Duration, Instant},
+};
+
 use anyhow::anyhow;
 use clap::{Arg, Command};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use itertools::Itertools;
 use log::LevelFilter;
+
 use move_compiler::shared::PackagePaths;
 use move_model::{
     model::{FunctionEnv, GlobalEnv, ModuleEnv, VerificationScope},
@@ -19,13 +28,6 @@ use move_prover::{
     check_errors, cli::Options, create_and_process_bytecode, generate_boogie, verify_boogie,
 };
 use move_stackless_bytecode::options::ProverOptions;
-use std::{
-    fmt::Debug,
-    fs::File,
-    io::{LineWriter, Write},
-    path::PathBuf,
-    time::{Duration, Instant},
-};
 
 // ============================================================================================
 // Command line interface for running a benchmark
@@ -141,6 +143,9 @@ fn run_benchmark(
             paths: dep_dirs.to_vec(),
             named_address_map: addrs,
         }],
+        // TODO(mengxu): add intrinsics (from move-stdlib)
+        vec![],
+        vec![],
         options.model_builder.clone(),
     )?;
     let mut error_writer = StandardStream::stderr(ColorChoice::Auto);

@@ -2,16 +2,17 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::Result;
-use evm::{backend::MemoryVicinity, ExitReason};
-use evm_exec_utils::{compile, exec::Executor};
-use move_model::{options::ModelBuilderOptions, run_model_builder_with_options};
-use move_to_yul::{generator::Generator, options::Options};
-use primitive_types::{H160, U256};
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
+use evm::{backend::MemoryVicinity, ExitReason};
+use primitive_types::{H160, U256};
+
+use evm_exec_utils::{compile, exec::Executor};
 use move_compiler::shared::{NumericalAddress, PackagePaths};
+use move_model::{options::ModelBuilderOptions, run_model_builder_with_options};
 use move_stdlib::move_stdlib_named_addresses;
+use move_to_yul::{generator::Generator, options::Options};
 
 pub const DISPATCHER_TESTS_LOCATION: &str = "tests/test-dispatcher";
 
@@ -72,6 +73,9 @@ fn compile_yul_to_bytecode_bytes(filename: &str) -> Result<Vec<u8>> {
             paths: deps,
             named_address_map,
         }],
+        // TODO(mengxu): add intrinsics (from move-stdlib, move-async-lib)
+        vec![],
+        vec![],
         ModelBuilderOptions::default(),
     )?;
     let options = Options::default();

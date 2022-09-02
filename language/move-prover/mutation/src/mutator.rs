@@ -135,6 +135,9 @@ fn apply_mutation(
             paths: dep_dirs.to_vec(),
             named_address_map: addrs,
         }],
+        // TODO(mengxu): add intrinsics (from move-stdlib)
+        vec![],
+        vec![],
         ModelBuilderOptions::default(),
     )?;
     let mut error_writer = StandardStream::stderr(ColorChoice::Auto);

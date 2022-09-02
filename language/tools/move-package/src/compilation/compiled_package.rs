@@ -2,17 +2,16 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    compilation::package_layout::CompiledPackageLayout,
-    resolution::resolution_graph::{Renaming, ResolvedGraph, ResolvedPackage, ResolvedTable},
-    source_package::{
-        layout::{SourcePackageLayout, REFERENCE_TEMPLATE_FILENAME},
-        parsed_manifest::{FileName, PackageDigest, PackageName},
-    },
-    BuildConfig,
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Write,
+    path::{Path, PathBuf},
 };
+
 use anyhow::{ensure, Result};
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
+
 use move_abigen::{Abigen, AbigenOptions};
 use move_binary_format::file_format::{CompiledModule, CompiledScript};
 use move_bytecode_source_map::utils::source_map_from_file;
@@ -35,11 +34,15 @@ use move_compiler::{
 use move_docgen::{Docgen, DocgenOptions};
 use move_model::{model::GlobalEnv, options::ModelBuilderOptions, run_model_builder_with_options};
 use move_symbol_pool::Symbol;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    io::Write,
-    path::{Path, PathBuf},
+
+use crate::{
+    compilation::package_layout::CompiledPackageLayout,
+    resolution::resolution_graph::{Renaming, ResolvedGraph, ResolvedPackage, ResolvedTable},
+    source_package::{
+        layout::{SourcePackageLayout, REFERENCE_TEMPLATE_FILENAME},
+        parsed_manifest::{FileName, PackageDigest, PackageName},
+    },
+    BuildConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -566,6 +569,9 @@ impl CompiledPackage {
             let model = run_model_builder_with_options(
                 vec![sources_package_paths],
                 deps_package_paths,
+                // TODO(mengxu): add intrinsics (from move-stdlib)
+                vec![],
+                vec![],
                 ModelBuilderOptions::default(),
             )?;
 

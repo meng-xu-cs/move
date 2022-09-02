@@ -2,12 +2,11 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    extensions, format_module_id,
-    test_reporter::{FailureReason, TestFailure, TestResults, TestRunInfo, TestStatistics},
-};
+use std::{collections::BTreeMap, io::Write, marker::Send, sync::Mutex, time::Instant};
+
 use anyhow::Result;
 use colored::*;
+use rayon::prelude::*;
 
 use move_binary_format::{errors::VMResult, file_format::CompiledModule};
 use move_bytecode_utils::Modules;
@@ -32,15 +31,12 @@ use move_stackless_bytecode_interpreter::{
     shared::bridge::{adapt_move_vm_change_set, adapt_move_vm_result},
     StacklessBytecodeInterpreter,
 };
+use move_vm_runtime::native_extensions::NativeContextExtensions;
 use move_vm_runtime::{move_vm::MoveVM, native_functions::NativeFunctionTable};
 use move_vm_test_utils::{
     gas_schedule::{zero_cost_schedule, CostTable, Gas, GasCost, GasStatus},
     InMemoryStorage,
 };
-use rayon::prelude::*;
-use std::{collections::BTreeMap, io::Write, marker::Send, sync::Mutex, time::Instant};
-
-use move_vm_runtime::native_extensions::NativeContextExtensions;
 #[cfg(feature = "evm-backend")]
 use {
     evm::{backend::MemoryVicinity, ExitReason},
@@ -49,6 +45,11 @@ use {
     primitive_types::{H160, U256},
     std::convert::TryInto,
     std::time::Duration,
+};
+
+use crate::{
+    extensions, format_module_id,
+    test_reporter::{FailureReason, TestFailure, TestResults, TestRunInfo, TestStatistics},
 };
 
 /// Test state common to all tests
@@ -387,6 +388,9 @@ impl SharedTestingConfig {
                     named_address_map: self.named_address_values.clone(),
                 }],
                 vec![],
+                // TODO(mengxu): add intrinsics
+                vec![],
+                vec![],
                 ModelBuilderOptions::default(),
                 Flags::testing(),
             )
@@ -624,6 +628,9 @@ impl SharedTestingConfig {
                 paths: filtered_sources,
                 named_address_map: self.named_address_values.clone(),
             }],
+            vec![],
+            // TODO(mengxu): add intrinsics
+            vec![],
             vec![],
             ModelBuilderOptions::default(),
             Flags::testing(),

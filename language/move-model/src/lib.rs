@@ -43,6 +43,7 @@ use move_symbol_pool::Symbol as MoveSymbol;
 use crate::{
     ast::{ModuleName, Spec},
     builder::model_builder::ModelBuilder,
+    intrinsics::{IntrinsicFunList, IntrinsicTypeList},
     model::{FunId, FunctionData, GlobalEnv, Loc, ModuleData, ModuleId, StructId},
     options::ModelBuilderOptions,
     simplifier::{SpecRewriter, SpecRewriterPipeline},
@@ -53,6 +54,7 @@ mod builder;
 pub mod code_writer;
 pub mod exp_generator;
 pub mod exp_rewriter;
+pub mod intrinsics;
 pub mod model;
 pub mod options;
 pub mod pragmas;
@@ -73,8 +75,16 @@ pub fn run_model_builder<
 >(
     move_sources: Vec<PackagePaths<Paths, NamedAddress>>,
     deps: Vec<PackagePaths<Paths, NamedAddress>>,
+    intrinsic_types: IntrinsicTypeList,
+    intrinsic_funs: IntrinsicFunList,
 ) -> anyhow::Result<GlobalEnv> {
-    run_model_builder_with_options(move_sources, deps, ModelBuilderOptions::default())
+    run_model_builder_with_options(
+        move_sources,
+        deps,
+        intrinsic_types,
+        intrinsic_funs,
+        ModelBuilderOptions::default(),
+    )
 }
 
 /// Build the move model with default compilation flags and custom options and a set of provided
@@ -86,11 +96,15 @@ pub fn run_model_builder_with_options<
 >(
     move_sources: Vec<PackagePaths<Paths, NamedAddress>>,
     deps: Vec<PackagePaths<Paths, NamedAddress>>,
+    intrinsic_types: IntrinsicTypeList,
+    intrinsic_funs: IntrinsicFunList,
     options: ModelBuilderOptions,
 ) -> anyhow::Result<GlobalEnv> {
     run_model_builder_with_options_and_compilation_flags(
         move_sources,
         deps,
+        intrinsic_types,
+        intrinsic_funs,
         options,
         Flags::verification(),
     )
@@ -104,10 +118,12 @@ pub fn run_model_builder_with_options_and_compilation_flags<
 >(
     move_sources: Vec<PackagePaths<Paths, NamedAddress>>,
     deps: Vec<PackagePaths<Paths, NamedAddress>>,
+    intrinsic_types: IntrinsicTypeList,
+    intrinsic_funs: IntrinsicFunList,
     options: ModelBuilderOptions,
     flags: Flags,
 ) -> anyhow::Result<GlobalEnv> {
-    let mut env = GlobalEnv::new();
+    let mut env = GlobalEnv::new(intrinsic_types, intrinsic_funs);
     env.set_extension(options);
 
     // Step 1: parse the program to get comments and a separation of targets and dependencies.
@@ -294,8 +310,10 @@ fn collect_related_modules_recursive<'a>(
 /// should appear earlier in the vector than its parents).
 pub fn run_bytecode_model_builder<'a>(
     modules: impl IntoIterator<Item = &'a CompiledModule>,
+    intrinsic_types: IntrinsicTypeList,
+    intrinsic_funs: IntrinsicFunList,
 ) -> anyhow::Result<GlobalEnv> {
-    let mut env = GlobalEnv::new();
+    let mut env = GlobalEnv::new(intrinsic_types, intrinsic_funs);
     for (i, m) in modules.into_iter().enumerate() {
         let id = m.self_id();
         let addr = addr_to_big_uint(id.address());

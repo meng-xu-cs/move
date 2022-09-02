@@ -2,9 +2,17 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+use std::{
+    collections::BTreeMap,
+    fmt::Write,
+    path::{Path, PathBuf},
+};
+
 use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::Buffer};
 use evm::backend::MemoryVicinity;
+use primitive_types::{H160, U256};
+
 use evm_exec_utils::{compile, exec::Executor, tracing};
 use move_command_line_common::testing::EXP_EXT;
 use move_compiler::shared::{NumericalAddress, PackagePaths};
@@ -16,12 +24,6 @@ use move_model::{
 use move_prover_test_utils::{baseline_test::verify_or_update_baseline, extract_test_directives};
 use move_stdlib::move_stdlib_named_addresses;
 use move_to_yul::{generator::Generator, options::Options};
-use primitive_types::{H160, U256};
-use std::{
-    collections::BTreeMap,
-    fmt::Write,
-    path::{Path, PathBuf},
-};
 
 fn test_runner(path: &Path) -> datatest_stable::Result<()> {
     let experiments = extract_test_directives(path, "// experiment:")?;
@@ -57,6 +59,9 @@ fn test_runner(path: &Path) -> datatest_stable::Result<()> {
             paths: deps,
             named_address_map,
         }],
+        // TODO(mengxu): add intrinsics (from move-stdlib)
+        vec![],
+        vec![],
         ModelBuilderOptions::default(),
         move_compiler::Flags::empty()
             .set_sources_shadow_deps(true)

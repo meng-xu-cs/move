@@ -4,7 +4,13 @@
 
 #![forbid(unsafe_code)]
 
-use crate::cli::Options;
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::{Path, PathBuf},
+    time::Instant,
+};
+
 use anyhow::anyhow;
 use codespan_reporting::{
     diagnostic::Severity,
@@ -12,6 +18,7 @@ use codespan_reporting::{
 };
 #[allow(unused_imports)]
 use log::{debug, info, warn};
+
 use move_abigen::Abigen;
 use move_compiler::shared::PackagePaths;
 use move_docgen::Docgen;
@@ -29,12 +36,8 @@ use move_stackless_bytecode::{
     pipeline_factory,
     read_write_set_analysis::{self, ReadWriteSetProcessor},
 };
-use std::{
-    collections::BTreeSet,
-    fs,
-    path::{Path, PathBuf},
-    time::Instant,
-};
+
+use crate::cli::Options;
 
 pub mod cli;
 
@@ -64,6 +67,9 @@ pub fn run_move_prover<W: WriteColor>(
             paths: options.move_deps.clone(),
             named_address_map: addrs,
         }],
+        // TODO(mengxu): add intrinsics (based on options from CLI)
+        vec![],
+        vec![],
         options.model_builder.clone(),
     )?;
     run_move_prover_with_model(&env, error_writer, options, Some(now))

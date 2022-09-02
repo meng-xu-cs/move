@@ -32,10 +32,10 @@ use codespan_reporting::{
 use itertools::Itertools;
 #[allow(unused_imports)]
 use log::{info, warn};
-use move_command_line_common::files::FileHash;
 use num::{BigUint, One, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
+pub use move_binary_format::file_format::{AbilitySet, Visibility as FunctionVisibility};
 use move_binary_format::{
     access::ModuleAccess,
     binary_views::BinaryIndexedView,
@@ -51,7 +51,10 @@ use move_binary_format::{
     },
     CompiledModule,
 };
+// re-export the ability-related types
+use move_binary_format::file_format::CodeOffset;
 use move_bytecode_source_map::{mapping::SourceMapping, source_map::SourceMap};
+use move_command_line_common::{address::NumericalAddress, files::FileHash};
 use move_core_types::{
     account_address::AccountAddress,
     identifier::{IdentStr, Identifier},
@@ -62,9 +65,10 @@ use move_disassembler::disassembler::{Disassembler, DisassemblerOptions};
 
 use crate::{
     ast::{
-        ConditionKind, Exp, ExpData, GlobalInvariant, ModuleName, PropertyBag, PropertyValue, Spec,
-        SpecBlockInfo, SpecFunDecl, SpecVarDecl, Value,
+        Attribute, ConditionKind, Exp, ExpData, GlobalInvariant, ModuleName, PropertyBag,
+        PropertyValue, Spec, SpecBlockInfo, SpecFunDecl, SpecVarDecl, Value,
     },
+    intrinsics::{IntrinsicFunList, IntrinsicTypeList},
     pragmas::{
         DELEGATE_INVARIANTS_TO_CALLER_PRAGMA, DISABLE_INVARIANTS_IN_BODY_PRAGMA, FRIEND_PRAGMA,
         INTRINSIC_PRAGMA, OPAQUE_PRAGMA, VERIFY_PRAGMA,
@@ -72,12 +76,6 @@ use crate::{
     symbol::{Symbol, SymbolPool},
     ty::{PrimitiveType, Type, TypeDisplayContext, TypeUnificationAdapter, Variance},
 };
-
-// import and re-expose symbols
-use crate::ast::Attribute;
-use move_binary_format::file_format::CodeOffset;
-pub use move_binary_format::file_format::{AbilitySet, Visibility as FunctionVisibility};
-use move_command_line_common::address::NumericalAddress;
 
 // =================================================================================================
 /// # Constants
@@ -203,6 +201,14 @@ pub struct FieldId(Symbol);
 /// Identifier for a Move function, relative to module.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct FunId(Symbol);
+
+/// Identifier for an intrinsic type, relative to a module.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub struct IntrinsicTypeId(Symbol);
+
+/// Identifier for an intrinsic function, relative to a module.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub struct IntrinsicFunId(Symbol);
 
 /// Identifier for a schema.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -479,6 +485,10 @@ pub struct GlobalEnv {
     /// A special constant location representing an opaque location.
     /// In difference to an `unknown_loc`, this is a well-known but undisclosed location.
     internal_loc: Loc,
+    /// Intrinsic types with an arbitrarily associated information.
+    intrinsic_types: BTreeMap<QualifiedId<IntrinsicTypeId>, Box<dyn Any>>,
+    /// Intrinsic functions with an arbitrarily associated information.
+    intrinsic_funs: BTreeMap<QualifiedId<IntrinsicFunId>, Box<dyn Any>>,
     /// Accumulated diagnosis. In a RefCell so we can add to it without needing a mutable GlobalEnv.
     /// The boolean indicates whether the diag was reported.
     diags: RefCell<Vec<(Diagnostic<FileId>, bool)>>,
@@ -515,7 +525,8 @@ pub struct EnvDisplay<'a, T> {
 
 impl GlobalEnv {
     /// Creates a new environment.
-    pub fn new() -> Self {
+    pub fn new(_intrinsic_types: IntrinsicTypeList, _intrinsic_funs: IntrinsicFunList) -> Self {
+        // TODO(mengxu): handle intrinsics
         let mut source_files = Files::new();
         let mut file_hash_map = BTreeMap::new();
         let mut file_id_to_idx = BTreeMap::new();
@@ -546,6 +557,8 @@ impl GlobalEnv {
             file_id_to_idx,
             file_idx_to_id,
             file_id_is_dep: BTreeSet::new(),
+            intrinsic_types: BTreeMap::new(),
+            intrinsic_funs: BTreeMap::new(),
             diags: RefCell::new(vec![]),
             symbol_pool: SymbolPool::new(),
             next_free_node_id: Default::default(),
@@ -1688,12 +1701,6 @@ impl GlobalEnv {
     /// Returns the address where the extensions libs are defined.
     pub fn get_extlib_address(&self) -> BigUint {
         self.extlib_address.clone().unwrap_or_else(|| 2u16.into())
-    }
-}
-
-impl Default for GlobalEnv {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

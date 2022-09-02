@@ -4,8 +4,25 @@
 
 #![forbid(unsafe_code)]
 
-mod abi_move_metadata;
+use std::fs;
+
+use anyhow::anyhow;
+use codespan_reporting::{
+    diagnostic::Severity,
+    term::termcolor::{ColorChoice, StandardStream, WriteColor},
+};
+
 pub use abi_move_metadata::parse_metadata_to_move_sig;
+use move_compiler::{shared::PackagePaths, Flags};
+use move_core_types::metadata::Metadata;
+use move_model::{
+    model::GlobalEnv, options::ModelBuilderOptions, parse_addresses_from_options,
+    run_model_builder_with_options_and_compilation_flags,
+};
+
+use crate::{generator::Generator, options::Options};
+
+mod abi_move_metadata;
 mod abi_native_functions;
 mod abi_signature;
 mod attributes;
@@ -24,20 +41,6 @@ mod storage;
 mod tables;
 mod vectors;
 mod yul_functions;
-
-use crate::{generator::Generator, options::Options};
-use anyhow::anyhow;
-use codespan_reporting::{
-    diagnostic::Severity,
-    term::termcolor::{ColorChoice, StandardStream, WriteColor},
-};
-use move_compiler::{shared::PackagePaths, Flags};
-use move_core_types::metadata::Metadata;
-use move_model::{
-    model::GlobalEnv, options::ModelBuilderOptions, parse_addresses_from_options,
-    run_model_builder_with_options_and_compilation_flags,
-};
-use std::fs;
 
 /// Run move-to-yul compiler and print errors to stderr.
 pub fn run_to_yul_errors_to_stderr(options: Options) -> anyhow::Result<()> {
@@ -60,6 +63,9 @@ pub fn run_to_yul<W: WriteColor>(error_writer: &mut W, mut options: Options) -> 
             paths: options.dependencies.clone(),
             named_address_map: addrs,
         }],
+        // TODO(mengxu): add intrinsics
+        vec![],
+        vec![],
         ModelBuilderOptions::default(),
         Flags::empty().set_flavor("async"),
     )?;
@@ -113,6 +119,9 @@ pub fn run_to_abi_metadata<W: WriteColor>(
             paths: options.dependencies.clone(),
             named_address_map: addrs,
         }],
+        // TODO(mengxu): add intrinsics
+        vec![],
+        vec![],
         ModelBuilderOptions::default(),
         Flags::empty().set_flavor("async"),
     )?;

@@ -108,6 +108,9 @@ pub(crate) fn prepare_with_override(
             paths: options.deps.clone(),
             named_address_map: named_addresses.clone(),
         }],
+        // TODO(mengxu): add intrinsics
+        vec![],
+        vec![],
         get_model_options(options),
     )?;
     if env.has_errors() {
