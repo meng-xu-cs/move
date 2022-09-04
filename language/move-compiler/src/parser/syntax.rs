@@ -3178,10 +3178,11 @@ fn parse_spec_property(context: &mut Context) -> Result<PragmaProperty, Diagnost
             }
             _ => {
                 // Parse as a module access for a possibly qualified identifier
-                Some(PragmaValue::Ident(parse_name_access_chain(
-                    context,
-                    || "an identifier as pragma value",
-                )?))
+                let ident = parse_name_access_chain(context, || "an identifier as pragma value")?;
+                match parse_optional_type_args(context)? {
+                    None => Some(PragmaValue::Ident(ident)),
+                    Some(ty_args) => Some(PragmaValue::Apply(ident, ty_args)),
+                }
             }
         }
     } else {

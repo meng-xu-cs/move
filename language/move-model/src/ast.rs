@@ -269,6 +269,7 @@ pub enum PropertyValue {
     Value(Value),
     Symbol(Symbol),
     QualifiedSymbol(QualifiedSymbol),
+    Application(QualifiedSymbol, Vec<Type>),
 }
 
 /// Specification and properties associated with a language item.

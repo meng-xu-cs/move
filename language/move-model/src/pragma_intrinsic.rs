@@ -42,7 +42,7 @@ fn check_intrinsic_declaration_in_struct(
     prop: &PropertyValue,
 ) {
     match prop {
-        PropertyValue::Value(_) | PropertyValue::Symbol(_) => {
+        PropertyValue::Value(_) | PropertyValue::Symbol(_) | PropertyValue::Application(..) => {
             builder.error(loc, "Invalid intrinsic declaration");
         }
         PropertyValue::QualifiedSymbol(symbol) => match builder.spec_struct_table.get(symbol) {

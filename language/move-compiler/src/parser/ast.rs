@@ -314,16 +314,17 @@ pub enum SpecBlockTarget_ {
 
 pub type SpecBlockTarget = Spanned<SpecBlockTarget_>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PragmaProperty_ {
     pub name: Name,
     pub value: Option<PragmaValue>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PragmaValue {
     Literal(Value),
     Ident(NameAccessChain),
+    Apply(NameAccessChain, Vec<Type>),
 }
 
 pub type PragmaProperty = Spanned<PragmaProperty_>;
@@ -1477,6 +1478,12 @@ impl AstDebug for PragmaProperty_ {
             match value {
                 PragmaValue::Literal(l) => l.ast_debug(w),
                 PragmaValue::Ident(i) => i.ast_debug(w),
+                PragmaValue::Apply(i, a) => {
+                    i.ast_debug(w);
+                    w.write("<");
+                    a.ast_debug(w);
+                    w.write(">");
+                }
             }
         }
     }

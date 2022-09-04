@@ -1514,6 +1514,11 @@ fn pragma_value(context: &mut Context, pv: P::PragmaValue) -> Option<E::PragmaVa
         P::PragmaValue::Ident(ma) => {
             name_access_chain(context, Access::Term, ma).map(E::PragmaValue::Ident)
         }
+        P::PragmaValue::Apply(ma, pty_args) => {
+            let ema = name_access_chain(context, Access::Term, ma)?;
+            let ety_args = types(context, pty_args);
+            Some(E::PragmaValue::Apply(ema, ety_args))
+        }
     }
 }
 

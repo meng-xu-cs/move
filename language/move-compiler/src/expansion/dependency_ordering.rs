@@ -578,6 +578,15 @@ fn spec_block_member(context: &mut Context, sp!(_, sbm_): &E::SpecBlockMember) {
                                 context.add_friend(*mident, maccess.loc);
                             }
                         },
+                        Some(E::PragmaValue::Apply(maccess, ty_args)) => {
+                            match &maccess.value {
+                                E::ModuleAccess_::Name(_) => (),
+                                E::ModuleAccess_::ModuleAccess(mident, _) => {
+                                    context.add_friend(*mident, maccess.loc);
+                                }
+                            };
+                            types(context, ty_args);
+                        }
                     }
                 }
             }

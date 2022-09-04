@@ -1279,6 +1279,15 @@ impl<'env, 'translator> ModuleBuilder<'env, 'translator> {
                         (None, sym) => PropertyValue::Symbol(sym),
                         _ => PropertyValue::QualifiedSymbol(self.module_access_to_qualified(ema)),
                     },
+                    EA::PragmaValue::Apply(..) => {
+                        // TODO(mengxu): add the support for type arguments.
+                        // This is non-trivial as it requires type parameter definitions from the calling context
+                        self.parent.error(
+                            &self.parent.to_loc(&prop.loc),
+                            "pragma / property values with type arguments are not supported yet",
+                        );
+                        continue;
+                    }
                 }
             } else {
                 PropertyValue::Value(Value::Bool(true))
