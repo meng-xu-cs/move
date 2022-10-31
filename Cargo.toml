@@ -56,6 +56,7 @@ members = [
     "language/move-vm/test-utils",
     "language/move-vm/transactional-tests",
     "language/move-vm/types",
+    "language/testing-infra/bounded-fuzzing",
     "language/testing-infra/module-generation",
     "language/testing-infra/test-generation",
     "language/testing-infra/transactional-test-runner",
@@ -112,3 +113,7 @@ inherits = "test"
 debug = 0 # for saving disk space during linking
 incremental = false
 codegen-units = 16
+
+[profile.fuzz]
+inherits = "dev"
+incremental = false

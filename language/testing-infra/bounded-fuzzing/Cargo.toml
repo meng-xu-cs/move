@@ -1,0 +1,17 @@
+[package]
+name = "bounded-fuzzing"
+version = "0.1.0"
+authors = ["Diem Association <opensource@diem.com>"]
+description = "Bounded fuzzing architecture for Move bytecode verifier"
+repository = "https://github.com/diem/diem"
+homepage = "https://diem.com"
+license = "Apache-2.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+move-bytecode-verifier = { path = "../../move-bytecode-verifier" }
+move-binary-format = { path = "../../move-binary-format" }
+
+[lib]
+crate-type = ["staticlib"]

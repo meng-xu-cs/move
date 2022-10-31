@@ -521,6 +521,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bounded-fuzzing"
+version = "0.1.0"
+dependencies = [
+ "move-binary-format",
+ "move-bytecode-verifier",
+]
+
+[[package]]
 name = "bstr"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
