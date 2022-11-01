@@ -2,12 +2,52 @@ all: build
 
 clean:
 	cargo clean --profile fuzz
-	rm -rf main.o main
+	rm -rf main.o main.bc main fuzz.o fuzz.bc fuzz
 
 build:
-	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld" \
-		cargo rustc --profile fuzz
-	clang-14 -c -O2 -flto=thin -o main.o main.c
-	clang-14 -flto=thin -fuse-ld=lld \
-		-L ../../../../target/fuzz -l"bounded_fuzzing" \
-		-o main -O2 main.o
+	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld -Zemit-thin-lto=no" \
+		cargo +nightly rustc \
+			--profile fuzz \
+			-Zbuild-std --target x86_64-unknown-linux-gnu
+	clang-15 \
+		-target x86_64-unknown-linux-gnu \
+		-c -O2 -flto \
+		-o main.o \
+		main.c
+	clang-15 \
+		-O2 -flto -fuse-ld=lld \
+		-L ../../../../target/x86_64-unknown-linux-gnu/fuzz -lbounded_fuzzing \
+		-Wl,--plugin-opt=-lto-embed-bitcode=optimized \
+		-Wl,-as-needed \
+		-Wl,-Bdynamic -lgcc_s -lrt -lc -lpthread -ldl \
+		-Wl,--eh-frame-hdr \
+		-Wl,--gc-sections \
+		-Wl,-znoexecstack \
+		-Wl,-zrelro \
+		-Wl,-znow \
+		-nodefaultlibs \
+		-no-pie \
+		-o main \
+		main.o
+	llvm-objcopy-15 \
+		main \
+		--dump-section .llvmbc=main.bc
+	opt-15 \
+		-o fuzz.bc \
+		main.bc
+	llc-15 \
+		-filetype=obj \
+		-o fuzz.o \
+		fuzz.bc
+	clang-15 \
+		-Wl,-as-needed \
+		-Wl,-Bdynamic -lgcc_s -lrt -lc -lpthread -ldl \
+		-Wl,--eh-frame-hdr \
+		-Wl,--gc-sections \
+		-Wl,-znoexecstack \
+		-Wl,-zrelro \
+		-Wl,-znow \
+		-nodefaultlibs \
+		-no-pie \
+		-o fuzz \
+		fuzz.o
