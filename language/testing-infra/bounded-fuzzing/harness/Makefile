@@ -5,7 +5,7 @@ clean:
 	rm -rf main.o main.bc main fuzz.o fuzz.bc fuzz
 
 build:
-	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld -Zemit-thin-lto=no" \
+	RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang-15 -Clink-arg=-fuse-ld=lld-15 -Zemit-thin-lto=no" \
 		cargo +nightly rustc \
 			--profile fuzz \
 			-Zbuild-std --target x86_64-unknown-linux-gnu
