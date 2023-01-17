@@ -14,16 +14,16 @@ use std::{
 
 use anyhow::anyhow;
 use clap::{Arg, Command};
+use codespan_reporting::diagnostic::Severity;
 use log::LevelFilter;
-use move_compiler::shared::NumericalAddress;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use simplelog::{
     CombinedLogger, Config, ConfigBuilder, LevelPadding, SimpleLogger, TermLogger, TerminalMode,
 };
 
-use codespan_reporting::diagnostic::Severity;
 use move_abigen::AbigenOptions;
+use move_compiler::shared::NumericalAddress;
 use move_docgen::DocgenOptions;
 use move_errmapgen::ErrmapOptions;
 use move_model::{
@@ -785,6 +785,80 @@ impl Options {
         }
 
         options.backend.derive_options();
+
+        //
+        // sui-specific configs
+        //
+
+        // custom treatment due to it implementing custom borrow semantics
+        // TODO: to be removed
+        options
+            .prover
+            .borrow_natives
+            .push("dynamic_field::borrow_child_object_mut".to_string());
+        options.backend.borrow_aggregates.push(
+            move_prover_boogie_backend::options::BorrowAggregate::new(
+                "dynamic_field::borrow_child_object_mut".to_string(),
+                "GetDynField".to_string(),
+                "UpdateDynField".to_string(),
+            ),
+        );
+
+        options
+            .prover
+            .borrow_natives
+            .push("dynamic_field::borrow_mut".to_string());
+        options.backend.borrow_aggregates.push(
+            move_prover_boogie_backend::options::BorrowAggregate::new(
+                "dynamic_field::borrow_mut".to_string(),
+                "GetDynField".to_string(),
+                "UpdateDynField".to_string(),
+            ),
+        );
+
+        // custom template for boogie includes
+        if options.backend.custom_natives.is_none() {
+            let template_path = std::path::Path::new("sui-natives.bpl");
+            if std::path::Path::exists(template_path) {
+                let template_data = std::fs::read_to_string(template_path).unwrap();
+                options.backend.custom_natives =
+                    Some(move_prover_boogie_backend::options::CustomNativeOptions {
+                        template_bytes: template_data.into_bytes(),
+                        module_instance_names: vec![
+                            (
+                                "0x2::transfer".to_string(),
+                                "transfer_instances".to_string(),
+                                true,
+                            ),
+                            (
+                                "0x2::object".to_string(),
+                                "object_instances".to_string(),
+                                true,
+                            ),
+                            (
+                                "0x2::event".to_string(),
+                                "sui_event_instances".to_string(),
+                                true,
+                            ),
+                            (
+                                "0x2::types".to_string(),
+                                "sui_types_instances".to_string(),
+                                true,
+                            ),
+                            (
+                                "0x2::dynamic_field".to_string(),
+                                "dynamic_field_instances".to_string(),
+                                false,
+                            ),
+                            (
+                                "0x2::prover_vec".to_string(),
+                                "prover_vec_instances".to_string(),
+                                true,
+                            ),
+                        ],
+                    });
+            }
+        }
 
         if matches.is_present("print-config") {
             println!("{}", toml::to_string(&options).unwrap());
