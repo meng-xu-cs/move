@@ -162,7 +162,7 @@ impl<'env, 'translator> ModuleBuilder<'env, 'translator> {
         function_infos: UniqueMap<PA::FunctionName, FunctionInfo>,
     ) {
         self.decl_ana(&module_def, &compiled_module, &source_map, &function_infos);
-        self.process_spec_lambda_funs(&compiled_module);
+        self.decl_ana_spec_lambda_funs(&compiled_module);
         self.def_ana(&module_def, &function_infos);
         self.collect_spec_block_infos(&module_def);
         let attrs = self.translate_attributes(&module_def.attributes);
@@ -3103,8 +3103,8 @@ impl<'env, 'translator> ModuleBuilder<'env, 'translator> {
 /// # Functions converted from lambda expressions
 
 impl<'env, 'translator> ModuleBuilder<'env, 'translator> {
-    /// Process decl and def analysis for functions converted from lambda expressions
-    fn process_spec_lambda_funs(&mut self, compiled_module: &CompiledModule) {
+    /// Process decl analysis for functions converted from lambda expressions
+    fn decl_ana_spec_lambda_funs(&mut self, compiled_module: &CompiledModule) {
         for fdef in compiled_module.function_defs() {
             // check whether this is a lambda-induced function
             let handle = compiled_module.function_handle_at(fdef.function);
@@ -3149,51 +3149,19 @@ impl<'env, 'translator> ModuleBuilder<'env, 'translator> {
 
             // enter it into the registry
             self.parent.define_fun(
-                default_loc.clone(),
+                default_loc,
                 attributes,
-                qsym.clone(),
+                qsym,
                 self.module_id,
                 fun_id,
                 visibility,
                 is_entry,
                 is_inline,
-                type_params.clone(),
-                params.clone(),
-                result_type.clone(),
-                inline_specs,
-            );
-
-            // Add function as a spec fun entry as well.
-            let spec_fun_id = SpecFunId::new(self.spec_funs.len());
-            self.parent.define_spec_fun(
-                qsym,
-                SpecFunEntry {
-                    loc: default_loc.clone(),
-                    oper: Operation::Function(self.module_id, spec_fun_id, None),
-                    type_params: type_params.iter().map(|(_, ty)| ty.clone()).collect(),
-                    arg_types: params.iter().map(|(_, ty)| ty.clone()).collect(),
-                    result_type: result_type.clone(),
-                },
-            );
-
-            // Add $ to the name so the spec version does not name clash with the Move version.
-            let name = self.symbol_pool().make(&format!("${}", name));
-            let fun_decl = SpecFunDecl {
-                loc: default_loc,
-                name,
                 type_params,
                 params,
-                context_params: None,
                 result_type,
-                used_memory: BTreeSet::new(),
-                uninterpreted: false,
-                is_move_fun: true,
-                is_native: false,
-                body: None,
-                callees: Default::default(),
-                is_recursive: Default::default(),
-            };
-            self.spec_funs.push(fun_decl);
+                inline_specs,
+            );
         }
     }
 }

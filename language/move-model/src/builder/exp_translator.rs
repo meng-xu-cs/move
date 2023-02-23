@@ -1039,38 +1039,6 @@ impl<'env, 'translator, 'module_translator> ExpTranslator<'env, 'translator, 'mo
 
             // Check whether this is invoking a function pointer which has been inlined
             if let Some((remapped_sym, preset_args)) = self.fun_ptrs_table.get(&sym).cloned() {
-                // look-up the function
-                let spec_fun_sym = QualifiedSymbol {
-                    module_name: self.parent.module_name.clone(),
-                    symbol: remapped_sym,
-                };
-                let spec_fun_entry = match self.parent.parent.spec_fun_table.get(&spec_fun_sym) {
-                    None => {
-                        self.error(
-                            loc,
-                            &format!(
-                                "Unable to find spec function from lifted lambda: {}",
-                                remapped_sym.display(self.symbol_pool())
-                            ),
-                        );
-                        return self.new_error_exp();
-                    }
-                    Some(entries) => {
-                        if entries.len() != 1 {
-                            self.error(
-                                loc,
-                                &format!(
-                                    "Expect a unique spec function from lifted lambda: {}, found {}",
-                                    remapped_sym.display(self.symbol_pool()),
-                                    entries.len()
-                                ),
-                            );
-                            return self.new_error_exp();
-                        }
-                        entries.last().unwrap().clone()
-                    }
-                };
-
                 // the preset arguments always appears in front
                 let mut full_arg_types = vec![];
                 let mut full_arg_exprs = vec![];
@@ -1095,63 +1063,13 @@ impl<'env, 'translator, 'module_translator> ExpTranslator<'env, 'translator, 'mo
                 full_arg_types.append(&mut arg_types);
                 full_arg_exprs.append(&mut args);
 
-                // type checking
-                let return_type_error = self.check_type(
-                    loc,
-                    &spec_fun_entry.result_type,
-                    expected_type,
-                    "in return type on lambda-lifted spec function call",
-                ) == Type::Error;
+                // construct the invoke
+                let fun_t = Type::Fun(full_arg_types.clone(), Box::new(expected_type.clone()));
+                let local_id = self.new_node_id_with_type_loc(&fun_t, &self.to_loc(&n.loc));
+                let local_var = ExpData::LocalVar(local_id, remapped_sym).into_exp();
 
-                if full_arg_types.len() != spec_fun_entry.arg_types.len() {
-                    self.error(
-                        loc,
-                        &format!(
-                            "Parameter number mismatch on calling a spec function from lifted lambda: {},",
-                            remapped_sym.display(self.symbol_pool())
-                        ),
-                    );
-                    return self.new_error_exp();
-                }
-                let param_type_error = full_arg_types
-                    .iter()
-                    .zip(spec_fun_entry.arg_types.iter())
-                    .any(|(actual_ty, expected_ty)| {
-                        self.check_type(
-                            loc,
-                            expected_ty,
-                            actual_ty,
-                            "in argument type on lambda-lifted spec function call",
-                        ) == Type::Error
-                    });
-                if return_type_error || param_type_error {
-                    return self.new_error_exp();
-                }
-
-                // construct the call
-                match &spec_fun_entry.oper {
-                    Operation::Function(module_id, spec_fun_id, None) => {
-                        if !self.translating_fun_as_spec_fun {
-                            // Record the usage of spec function in specs, used later in spec build.
-                            self.parent
-                                .parent
-                                .add_used_spec_fun(module_id.qualified(*spec_fun_id));
-                        }
-                        self.called_spec_funs.insert((*module_id, *spec_fun_id));
-                    }
-                    _ => {
-                        self.error(
-                            loc,
-                            &format!(
-                                "Invalid spec function entry for {}",
-                                remapped_sym.display(self.symbol_pool())
-                            ),
-                        );
-                        return self.new_error_exp();
-                    }
-                }
-                let call_exp_id = self.new_node_id_with_type_loc(expected_type, loc);
-                return ExpData::Call(call_exp_id, spec_fun_entry.oper.clone(), full_arg_exprs);
+                let invoke_exp_id = self.new_node_id_with_type_loc(expected_type, loc);
+                return ExpData::Invoke(invoke_exp_id, local_var, full_arg_exprs);
             }
         }
 

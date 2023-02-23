@@ -964,3 +964,7 @@ pub fn boogie_reflection_type_is_struct(env: &GlobalEnv, ty: &Type) -> String {
         Some(TypeInfoPack::Symbolic(idx)) => format!("is#$TypeParamStruct(#{}_info)", idx),
     }
 }
+
+pub fn boogie_lambda_result_var(env: &GlobalEnv, lambda_name: Symbol, index: usize) -> String {
+    format!("{}_r{}", lambda_name.display(env.symbol_pool()), index)
+}

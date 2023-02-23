@@ -38,11 +38,11 @@ use move_stackless_bytecode::{
 use crate::{
     boogie_helpers::{
         boogie_address_blob, boogie_bv_type, boogie_byte_blob, boogie_choice_fun_name,
-        boogie_declare_global, boogie_field_sel, boogie_inst_suffix, boogie_modifies_memory_name,
-        boogie_num_type_base, boogie_reflection_type_info, boogie_reflection_type_is_struct,
-        boogie_reflection_type_name, boogie_resource_memory_name, boogie_spec_fun_name,
-        boogie_spec_var_name, boogie_struct_name, boogie_type, boogie_type_suffix,
-        boogie_type_suffix_bv, boogie_value_blob, boogie_well_formed_expr,
+        boogie_declare_global, boogie_field_sel, boogie_inst_suffix, boogie_lambda_result_var,
+        boogie_modifies_memory_name, boogie_num_type_base, boogie_reflection_type_info,
+        boogie_reflection_type_is_struct, boogie_reflection_type_name, boogie_resource_memory_name,
+        boogie_spec_fun_name, boogie_spec_var_name, boogie_struct_name, boogie_type,
+        boogie_type_suffix, boogie_type_suffix_bv, boogie_value_blob, boogie_well_formed_expr,
         boogie_well_formed_expr_bv,
     },
     options::BoogieOptions,
@@ -659,9 +659,20 @@ impl<'env> SpecTranslator<'env> {
                 self.set_writer_location(*node_id);
                 self.translate_call(*node_id, oper, args);
             }
-            ExpData::Invoke(node_id, ..) => {
-                self.error(&self.env.get_node_loc(*node_id), "Invoke not yet supported");
-            }
+            ExpData::Invoke(node_id, target, args) => match target.as_ref() {
+                ExpData::LocalVar(_, sym) => {
+                    let result_var = boogie_lambda_result_var(self.env, *sym, 0);
+                    emit!(self.writer, "(call {} := ", result_var);
+                    self.translate_primitive_call(
+                        &sym.display(self.env.symbol_pool()).to_string(),
+                        args,
+                    );
+                    emit!(self.writer, "; {})", result_var);
+                }
+                _ => {
+                    self.error(&self.env.get_node_loc(*node_id), "Invoke not yet supported");
+                }
+            },
             ExpData::Lambda(node_id, ..) => self.error(
                 &self.env.get_node_loc(*node_id),
                 "`|x|e` (lambda) currently only supported as argument for `all` or `any`",
